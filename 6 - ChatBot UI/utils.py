@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize LLM
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7, max_tokens=200)
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
 
 
 class ChatState(TypedDict):
