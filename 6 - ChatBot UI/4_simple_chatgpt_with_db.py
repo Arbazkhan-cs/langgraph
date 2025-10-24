@@ -1,12 +1,12 @@
 import streamlit as st
-from utils import load_workflow
+from utility_for_sqlite_integration import load_workflow, retrieve_all_threads, delete_thread
 from langchain_core.messages import HumanMessage, AIMessage
 import uuid
 
 # **************************************** utility functions *************************
 
 def generate_thread_id():
-    thread_id = str(int(st.session_state['thread_id']) + 1)
+    thread_id = uuid.uuid4()
     return thread_id
 
 def reset_chat():
@@ -33,10 +33,10 @@ if 'message_history' not in st.session_state:
     st.session_state['message_history'] = []
 
 if 'thread_id' not in st.session_state:
-    st.session_state['thread_id'] = 0
+    st.session_state['thread_id'] = generate_thread_id()
 
 if 'chat_threads' not in st.session_state:
-    st.session_state['chat_threads'] = []
+    st.session_state['chat_threads'] = retrieve_all_threads()
 
 add_thread(st.session_state['thread_id'])
 
@@ -51,24 +51,45 @@ if st.sidebar.button('New Chat'):
 st.sidebar.header('My Conversations')
 
 for thread_id in st.session_state['chat_threads'][::-1]:
-    if st.sidebar.button("conversation: "+str(thread_id)):
-        st.session_state['thread_id'] = thread_id
-        messages = load_conversation(thread_id)
+    col1, col2 = st.sidebar.columns([4, 1])
+    
+    with col1:
+        if st.button("conversation: "+str(thread_id)[:8], key=f"thread_btn_{thread_id}", use_container_width=True):
+            st.session_state['thread_id'] = thread_id
+            messages = load_conversation(thread_id)
 
-        temp_messages = []
+            temp_messages = []
 
-        for msg in messages:
-            if isinstance(msg, HumanMessage):
-                role='user'
+            for msg in messages:
+                if isinstance(msg, HumanMessage):
+                    role='user'
+                else:
+                    role='assistant'
+                temp_messages.append({'role': role, 'content': msg.content})
+
+            st.session_state['message_history'] = temp_messages
+            st.rerun()
+    
+    with col2:
+        if st.button("🗑️", key=f"delete_btn_{thread_id}", help="Delete this conversation"):
+            if len(st.session_state['chat_threads']) > 1:
+                if delete_thread(thread_id):
+                    st.session_state['chat_threads'].remove(thread_id)
+                    
+                    # If deleted current chat, switch to another
+                    if thread_id == st.session_state['thread_id']:
+                        st.session_state['thread_id'] = st.session_state['chat_threads'][0]
+                        st.session_state['message_history'] = []
+                    
+                    st.rerun()
+                else:
+                    st.sidebar.error("Failed to delete conversation")
             else:
-                role='assistant'
-            temp_messages.append({'role': role, 'content': msg.content})
-
-        st.session_state['message_history'] = temp_messages
+                st.sidebar.warning("Cannot delete the last conversation!")
 
 
 # **************************************** Main UI ************************************
-st.title(f"Simple ChatGpt - Conversation: {st.session_state['thread_id']}")
+st.title(f"Simple ChatGpt: {str(st.session_state['thread_id'])[:8]}")
 
 # loading the conversation history
 for message in st.session_state['message_history']:
@@ -95,7 +116,7 @@ if user_input:
                     config=CONFIG,
                     stream_mode="messages"
                 ):
-                    if isinstance(message_chunk, AIMessage):
+                    if isinstance(message_chunk, AIMessage): 
                         # yield only assistant tokens
                         yield message_chunk.content
 
