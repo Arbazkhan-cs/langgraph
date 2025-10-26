@@ -4,9 +4,11 @@ from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langsmith import traceable
 from dotenv import load_dotenv
 import logging
 import sqlite3
+import os
 
 # Load environment variables
 load_dotenv()
@@ -14,6 +16,10 @@ load_dotenv()
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Log LangSmith configuration
+logger.info(f"LangSmith Tracing: {os.environ.get('LANGCHAIN_TRACING_V2')}")
+logger.info(f"LangSmith Project: {os.environ.get('LANGCHAIN_PROJECT')}")
 
 # Initialize LLM
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
@@ -26,7 +32,6 @@ checkpointer = SqliteSaver(conn=conn)
 class ChatState(TypedDict):
     """State definition for the chat workflow."""
     messages: Annotated[list[BaseMessage], add_messages]
-
 
 def chat_node(state: ChatState) -> dict:
     """
@@ -44,7 +49,6 @@ def chat_node(state: ChatState) -> dict:
     except Exception as e:
         logger.error(f"Error in chat_node: {str(e)}")
         raise
-
 
 def load_workflow():
     """

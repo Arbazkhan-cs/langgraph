@@ -1,6 +1,7 @@
 import streamlit as st
 from utility_for_sqlite_integration import load_workflow, retrieve_all_threads, delete_thread
 from langchain_core.messages import HumanMessage, AIMessage
+from langsmith import traceable
 import uuid
 
 # **************************************** utility functions *************************
