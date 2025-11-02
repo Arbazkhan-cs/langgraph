@@ -1,6 +1,8 @@
 langchain
 langchain_groq
+langchain_community
 langgraph
 python-dotenv
 streamlit
 langgraph-checkpoint-sqlite
+ddgs # ducdkduckgo search package
