@@ -7,6 +7,13 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.checkpoint.sqlite import SqliteSaver
+# ======================== RAG ===================================
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.document_loaders import PyPDFLoader
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain.tools.retriever import create_retriever_tool
+
 from dotenv import load_dotenv
 import logging
 import sqlite3
@@ -47,9 +54,31 @@ def calculator(operator: Literal["add", "multiply", "divide", "subtract"], num1:
     
 search_tool = DuckDuckGoSearchRun()
 
+def document_retriver_tool(document_path, name, desc):
+    doc_loader = PyPDFLoader(document_path)
+    documents = doc_loader.load()
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        separators=['\n']
+    )
+    docs = splitter.split_documents(documents)
+    embeddings = HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2")
+    db = FAISS.from_documents(docs, embeddings)
+    retriever = db.as_retriever()
+    retriever_tool = create_retriever_tool(retriever=retriever, name=name,
+                                       description=desc)
+    return retriever_tool
+
+name = "Java Language"
+desc = "search for information about Java programming Language. For any question about Java, use this tool"
+document_path = "Java_Full_Notes.pdf"
+retriever_tool = document_retriver_tool(document_path=document_path, name=name, desc=desc)
+logger.info("Tools Loaded SuccessFully")
+
 # ========================= Initialize LLM with tools ===================================
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
-tools = [calculator, search_tool]
+tools = [calculator, search_tool, retriever_tool]
 llm_with_tools = llm.bind_tools(tools)
 
 # ===================== create connection in sqlite and checkpoint ==========================
