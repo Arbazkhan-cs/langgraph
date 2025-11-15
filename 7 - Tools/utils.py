@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 # ======================== RAG ===================================
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
@@ -79,7 +80,26 @@ logger.info("Tools Loaded SuccessFully")
 # ========================= Initialize LLM with tools ===================================
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
 tools = [calculator, search_tool, retriever_tool]
-llm_with_tools = llm.bind_tools(tools)
+
+# Create a prompt template that instructs when to use search tool
+prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are a helpful AI assistant. You have access to several tools including a search tool, calculator, and document retriever.
+
+IMPORTANT GUIDELINES FOR USING THE SEARCH TOOL:
+1. Only use the search tool when the user EXPLICITLY asks you to search for something (e.g., "search for...", "look up...", "find information about...")
+2. Use the search tool when you don't have knowledge about a topic or when your information might be outdated
+3. Use the search tool when the user asks about current events, recent news, or anything related to the present time (2025 or later)
+4. For general knowledge questions that you can answer confidently from your training, respond directly WITHOUT using the search tool
+
+For calculator operations, use the calculator tool.
+For Java programming questions, use the Java Language retriever tool.
+
+Be conversational and helpful. Only invoke tools when truly necessary based on the guidelines above."""),
+    MessagesPlaceholder(variable_name="messages")
+])
+
+# Bind tools to the LLM with the prompt
+llm_with_tools = prompt | llm.bind_tools(tools)
 
 # ===================== create connection in sqlite and checkpoint ==========================
 conn = sqlite3.connect('chatbot.db', check_same_thread=False)

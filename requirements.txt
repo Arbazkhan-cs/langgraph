@@ -6,3 +6,9 @@ python-dotenv
 streamlit
 langgraph-checkpoint-sqlite
 ddgs # ducdkduckgo search package
+pypdf
+huggingface_hub
+langchain_huggingface
+sentence-transformers
+faiss-cpu
+youtube-transcript-api
